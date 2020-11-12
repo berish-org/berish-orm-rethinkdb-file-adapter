@@ -11,6 +11,8 @@
     "function-constructor": false,
     "max-classes-per-file": false,
     "array-type": false,
-    "forin": false
+    "forin": false,
+    "interface-over-type-literal": false,
+    "unified-signatures": false
   }
 }
