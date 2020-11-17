@@ -192,16 +192,18 @@ describe('test emitter', () => {
       const eventHash = emitter.cacheSubscribe(
         'query1',
         callback => {
-          let unlistener = intervalSubscribe(() => {
-            const data = '1';
-            testStringRaw = `${testStringRaw} ${data}`.trim();
-            callback(data);
+          return Promise.resolve().then(() => {
+            let unlistener = intervalSubscribe(() => {
+              const data = '1';
+              testStringRaw = `${testStringRaw} ${data}`.trim();
+              callback(data);
+            });
+            isListinig = true;
+            return () => {
+              unlistener();
+              isListinig = false;
+            };
           });
-          isListinig = true;
-          return () => {
-            unlistener();
-            isListinig = false;
-          };
         },
         (data: string) => {
           testStringCache = `${testStringCache} ${data}`.trim();

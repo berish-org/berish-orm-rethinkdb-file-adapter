@@ -135,19 +135,23 @@ export class EventEmitter<EventMap extends EventMapBaseType> {
    */
   public cacheSubscribe<Result>(
     eventName: EventNameType,
-    callCallback: (callback: (data: Result) => void) => () => void,
+    callCallback: (callback: (data: Result) => void) => (() => void) | Promise<() => void>,
     cacheCallback: (data: Result) => void,
   ) {
     const hasEvent = this.hasEvent(eventName);
     const eventHash = this.on(eventName, cacheCallback);
     if (!hasEvent) {
-      let unlistener = callCallback(data => {
-        this.emitAsync(eventName, data);
-      });
-      const triggerOffEventHash = this.triggerOffEvent(eventName, () => {
+      let unlistenerPromise = Promise.resolve().then(() =>
+        callCallback(data => {
+          this.emitAsync(eventName, data);
+        }),
+      );
+      const triggerOffEventHash = this.triggerOffEvent(eventName, async () => {
+        let unlistener = unlistenerPromise && (await unlistenerPromise);
         if (unlistener) {
           unlistener();
           unlistener = null;
+          unlistenerPromise = null;
         }
         this.off(triggerOffEventHash);
       });
