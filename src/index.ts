@@ -33,6 +33,9 @@ export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapte
 
   public async create(items: IBaseFileItem[]) {
     const table = await this.table(this.params.tableName);
+
+    items.forEach(item => (item.createdAt = +new Date()));
+
     await table.insert(items, { conflict: 'replace' }).run(this.connection);
   }
 
@@ -46,7 +49,14 @@ export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapte
 
   private async table(tableName: string): Promise<r.Table> {
     const db = r.db(this.params.dbName);
-    if (this.tables.includes(tableName)) return db.table(tableName);
+    if (this.tables.includes(tableName)) {
+      const tableList = await db.tableList().run(this.connection);
+
+      if (tableList.includes(tableName)) return db.table(tableName);
+      this.tables.splice(this.tables.indexOf(tableName), 1);
+
+      return this.table(tableName);
+    }
     if (this.tablesInWait[tableName]) {
       await this.tablesInWait[tableName];
       return this.table(tableName);

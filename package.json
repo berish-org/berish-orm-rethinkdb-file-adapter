@@ -1,6 +1,6 @@
 {
   "name": "@berish/orm-rethinkdb-file-adapter",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Адаптер файловой базы данных RethinkDB для @berish/orm",
   "main": "build/index.js",
   "typings": "build/index.d.ts",
@@ -25,7 +25,7 @@
     "test": "jest --config jestconfig.json",
     "test:dev": "jest --config jestconfig.json --watch --verbose=false",
     "build": "tsc -p .",
-    "format": "prettier --write \"src/**/*.ts\" \"src/**/*.js\"",
+    "format": "prettier --write \"src/**/*.(t|j)s\"",
     "lint": "tslint -p tsconfig.json",
     "prepare": "npm run build",
     "prepublishOnly": "npm test && npm run lint",
@@ -37,10 +37,10 @@
     "build/**/*"
   ],
   "peerDependencies": {
-    "@berish/orm": "^0.2.0"
+    "@berish/orm": "^0.4.0"
   },
   "devDependencies": {
-    "@berish/orm": "^0.2.0",
+    "@berish/orm": "^0.4.0",
     "@types/faker": "^4.1.5",
     "@types/jest": "^24.0.15",
     "@types/rethinkdb": "^2.3.16",
