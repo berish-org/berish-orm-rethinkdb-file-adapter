@@ -25,7 +25,7 @@
     "test": "jest --config jestconfig.json",
     "test:dev": "jest --config jestconfig.json --watch --verbose=false",
     "build": "tsc -p .",
-    "format": "prettier --write \"src/**/*.(t|j)s\"",
+    "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
     "prepare": "npm run build",
     "prepublishOnly": "npm test && npm run lint",
