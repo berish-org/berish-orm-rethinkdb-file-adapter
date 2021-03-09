@@ -1,3 +1,4 @@
+import { CacheEmitter } from '@berish/emitter';
 import { BaseFileAdapter, IBaseFileItem } from '@berish/orm';
 import * as r from 'rethinkdb';
 
@@ -10,9 +11,20 @@ export interface IRethinkDBAdapterParams {
 
 export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapterParams> {
   private connection: r.Connection = null;
+  private _cacheEmitter = new CacheEmitter();
 
   private tables: string[] = [];
-  private tablesInWait: { [tableName: string]: Promise<void> } = {};
+  // private tablesInWait: { [tableName: string]: Promise<void> } = {};
+
+  public async close() {
+    if (this.connection && this.connection.open) {
+      await this.connection.close();
+    }
+    this.params = null;
+    this.connection = null;
+
+    this.tables = [];
+  }
 
   public async initialize(params: IRethinkDBAdapterParams) {
     this.params = params;
@@ -47,35 +59,34 @@ export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapte
       .run(this.connection);
   }
 
-  private async table(tableName: string): Promise<r.Table> {
-    const db = r.db(this.params.dbName);
-    if (this.tables.includes(tableName)) {
+  private table(tableName: string): Promise<r.Table> {
+    const _table = async (tableName: string) => {
+      const db = r.db(this.params.dbName);
+
+      if (this.tables.includes(tableName)) {
+        const tableList = await db.tableList().run(this.connection);
+
+        if (tableList.includes(tableName)) return db.table(tableName);
+        this.tables.splice(this.tables.indexOf(tableName), 1);
+
+        return _table(tableName);
+      }
+
       const tableList = await db.tableList().run(this.connection);
+      if (!tableList.includes(tableName)) {
+        await db.tableCreate(tableName).run(this.connection);
+        await db
+          .table(tableName)
+          .wait()
+          .run(this.connection);
+      }
+      this.tables.push(tableName);
 
-      if (tableList.includes(tableName)) return db.table(tableName);
-      this.tables.splice(this.tables.indexOf(tableName), 1);
+      return db.table(tableName);
+    };
 
-      return this.table(tableName);
-    }
-    if (this.tablesInWait[tableName]) {
-      await this.tablesInWait[tableName];
-      return this.table(tableName);
-    }
-    let resolvePromise: () => void = null;
-    this.tablesInWait[tableName] = new Promise<void>(resolve => (resolvePromise = resolve));
-    const tableList = await db.tableList().run(this.connection);
-    if (!tableList.includes(tableName)) {
-      await db.tableCreate(tableName).run(this.connection);
-      await db
-        .table(tableName)
-        .wait()
-        .run(this.connection);
-    }
-    this.tables.push(tableName);
-
-    resolvePromise();
-    delete this.tablesInWait[tableName];
-
-    return db.table(tableName);
+    return this._cacheEmitter.call(tableName, () => {
+      return _table(tableName);
+    });
   }
 }
