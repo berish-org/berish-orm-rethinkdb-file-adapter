@@ -7,6 +7,8 @@ export interface IRethinkDBAdapterParams {
   port: number;
   dbName: string;
   tableName: string;
+  user?: string;
+  password?: string;
 }
 
 export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapterParams> {
@@ -28,11 +30,15 @@ export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapte
 
   public async initialize(params: IRethinkDBAdapterParams) {
     this.params = params;
-    this.connection = await r.connect({ db: params.dbName, host: params.host, port: params.port });
-    const dbList = await r.dbList().run(this.connection);
-    if (!dbList.includes(params.dbName)) {
-      await r.dbCreate(params.dbName).run(this.connection);
-    }
+    this.connection = await r.connect({
+      db: params.dbName,
+      host: params.host,
+      password: params.password,
+      port: params.port,
+      user: params.user,
+    });
+
+    await this.db(params.dbName);
   }
 
   public async get(ids: string[], fetchData: boolean) {
@@ -59,9 +65,27 @@ export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapte
       .run(this.connection);
   }
 
+  private db(dbName: string): Promise<r.Db> {
+    const _db = async (dbName: string) => {
+      const dbList = await r.dbList().run(this.connection);
+
+      if (!dbList.includes(dbName)) {
+        await r.dbCreate(dbName).run(this.connection);
+        await r
+          .db(dbName)
+          .wait()
+          .run(this.connection);
+      }
+
+      return r.db(dbName);
+    };
+
+    return this._cacheEmitter.call(dbName, () => _db(dbName));
+  }
+
   private table(tableName: string): Promise<r.Table> {
     const _table = async (tableName: string) => {
-      const db = r.db(this.params.dbName);
+      const db = await this.db(this.params.dbName);
 
       if (this.tables.includes(tableName)) {
         const tableList = await db.tableList().run(this.connection);
@@ -85,8 +109,6 @@ export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapte
       return db.table(tableName);
     };
 
-    return this._cacheEmitter.call(tableName, () => {
-      return _table(tableName);
-    });
+    return this._cacheEmitter.call(tableName, () => _table(tableName));
   }
 }
