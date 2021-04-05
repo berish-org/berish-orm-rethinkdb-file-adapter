@@ -3,12 +3,13 @@ import { BaseFileAdapter, IBaseFileItem } from '@berish/orm';
 import * as r from 'rethinkdb';
 
 export interface IRethinkDBAdapterParams {
-  host: string;
-  port: number;
-  dbName: string;
-  tableName: string;
+  host?: string;
+  port?: number;
+  dbName?: string;
+  tableName?: string;
   user?: string;
   password?: string;
+  ssl?: r.ConnectionOptions['ssl'];
 }
 
 export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapterParams> {
@@ -29,13 +30,17 @@ export default class RethinkFileAdapter extends BaseFileAdapter<IRethinkDBAdapte
   }
 
   public async initialize(params: IRethinkDBAdapterParams) {
+    params = params || {};
+
     this.params = params;
+
     this.connection = await r.connect({
       db: params.dbName,
       host: params.host,
       password: params.password,
       port: params.port,
       user: params.user,
+      ssl: params.ssl,
     });
 
     await this.db(params.dbName);
